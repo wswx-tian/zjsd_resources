@@ -279,8 +279,10 @@
     if(!map)return;
     let list=state.district==='all'?D.nodes.filter(n=>n.latlng&&cityResourceNodes.has(n)):D.nodes.filter(n=>n.district===state.district&&n.latlng&&cityResourceNodes.has(n));
     if(!list.length){const geo=D.districts.find(d=>d.id===state.district);if(geo){const feature=window.CITY_GEOJSON.features.find(f=>f.properties.name===geo.name);if(feature)map.fitBounds(L.geoJSON(feature).getBounds(),{padding:[55,55],maxZoom:10.5});}return;}
-    const b=L.latLngBounds(list.map(n=>n.latlng));const compact=window.innerWidth<700;
-    map.fitBounds(b,{paddingTopLeft:[compact?25:45,state.district==='all'?(compact?145:110):105],paddingBottomRight:[compact?25:45,220],maxZoom:state.district==='all'?8.2:11.5,animate:true,duration:.6});
+    const b=L.latLngBounds(list.map(n=>n.latlng)),compact=window.innerWidth<700;
+    const displayPixelWidth=Math.max(window.innerWidth,window.screen?.width||0)*window.devicePixelRatio;
+    const cityMaxZoom=displayPixelWidth>=2400?9:8.2;
+    map.fitBounds(b,{paddingTopLeft:[compact?25:45,state.district==='all'?(compact?145:110):105],paddingBottomRight:[compact?25:45,220],maxZoom:state.district==='all'?cityMaxZoom:11.5,animate:true,duration:.6});
   }
   function renderPointLegend(type){
     if(type==='warehouse')return '<span class="legend-title">仓库等级</span>'+Object.entries(warehouseLevelColors).map(([level,color])=>`<span><i class="legend-node" style="--legend-color:${color}"></i>${level}</span>`).join('')+'<span title="仅匹配同一区县的相邻层级仓点；坐标与台账区县不一致的记录暂不参与连线"><i class="legend-line"></i>同区上下级仓网</span><span id="visible-map-count" class="visible-map-count"></span>';

@@ -388,6 +388,14 @@ body{background:#0b1420}
 
 :root{--magenta:#ce82e6}
 .warehouse-panel{--resource-icon-color:var(--cyan)}
+
+/* Give the resource map more room on large presentation displays. */
+@media (min-width:1650px){
+  .workspace{
+    grid-template-columns:clamp(300px,16vw,440px) minmax(0,1fr) clamp(300px,16vw,440px);
+    gap:clamp(14px,.8vw,24px)
+  }
+}
 .material-panel{--resource-icon-color:var(--magenta)}
 .transport-panel{--resource-icon-color:var(--blue)}
 .personnel-panel{--resource-icon-color:var(--purple)}
