@@ -182,8 +182,7 @@
     const ms=matchingMaterials(),categories=new Map();
     ms.forEach(m=>categories.set(m.category||'品类未填',(categories.get(m.category||'品类未填')||0)+1));
     const sorted=[...categories].sort((a,b)=>b[1]-a[1]),max=sorted[0]?.[1]||1;
-    $('#material-list').innerHTML=sorted.map(([name,count])=>`<div class="material-row"><span class="material-row-head"><span>${esc(name)}</span><strong>${number(count)}<small>条</small></strong></span><span class="material-track"><i style="width:${Math.max(3,count/max*100)}%"></i></span></div>`).join('')||'<p class="empty-state">当前筛选下没有物资明细</p>';
-    $('#material-warning').textContent='分类记录数占比，不等同于库存数量占比';
+    $('#material-list').innerHTML=sorted.map(([name,count])=>`<div class="material-row"><span class="material-row-head"><span>${esc(name)}</span><strong>${number(count)}</strong></span><span class="material-track"><i style="width:${Math.max(3,count/max*100)}%"></i></span></div>`).join('')||'<p class="empty-state">当前筛选下没有物资明细</p>';
   }
   function renderResourcePanel(type){
     const list=visibleNodes().filter(n=>n.type===type),id=type==='transport'?'transport':'team';
@@ -203,14 +202,6 @@
     const qty=[...new Map(list.filter(n=>n.unit).map(n=>[n.unit,0])).keys()].map(unit=>`${number(list.filter(n=>n.unit===unit).reduce((s,n)=>s+(Number(n.quantity)||0),0))} ${esc(unit)}`).join(' · ');
     $('#equipment-summary').innerHTML=`<strong>${number(list.length)}</strong><span>条装备记录</span><small>${qty||'数量未提供'}</small>`;
     $('#equipment-list').innerHTML=[...groups].sort((a,b)=>b[1].rows-a[1].rows).map(([name,g])=>`<div class="resource-row static-row"><span><strong>${esc(name)}</strong><small>${number(g.rows)} 条记录 · ${[...g.qty].map(([u,q])=>`${number(q)} ${esc(u)}`).join(' · ')||'数量未填'}</small></span></div>`).join('')||'<p class="empty-state">当前筛选下没有装备记录</p>';
-  }
-  function renderDistricts(){
-    const list=D.nodes,teamLayer=state.layers.has('team');
-    $('#district-interaction-hint').textContent=teamLayer?'队伍按区县汇总展示':'点击区县进入下钻';
-    $('#district-capacity').innerHTML=D.districts.map(d=>{
-      const nodes=list.filter(n=>n.district===d.id),wh=nodes.filter(n=>n.type==='warehouse').length,team=teamCountForDistrict(d.id),transport=nodes.filter(n=>n.type==='transport').length,equipment=nodes.filter(n=>n.type==='equipment').length,total=wh+team+transport+equipment;
-      return `<button data-district="${d.id}" class="${state.district===d.id?'active':''}" title="${teamLayer?'队伍数据仅展示区县汇总':`进入${esc(d.name)}`}" ${teamLayer?'disabled':''}><span class="capacity-name">${esc(d.short)}</span><span class="district-count">${number(total)} 项资源</span><small>仓 ${wh} · 队 ${number(team)} · 站 ${transport} · 装 ${equipment}</small></button>`;
-    }).join('');
   }
   function currentLedgerRows(){
     const ns=visibleNodes(),ms=matchingMaterials();let list=[];
@@ -240,9 +231,8 @@
     $$('[data-ledger]').forEach(b=>b.classList.toggle('active',b.dataset.ledger===state.ledger));
   }
   function render(){
-    renderKpis();renderWarehouses();renderMaterials();renderResourcePanel('transport');renderResourcePanel('team');renderEquipment();renderDistricts();renderLedger();
+    renderKpis();renderWarehouses();renderMaterials();renderResourcePanel('transport');renderResourcePanel('team');renderEquipment();renderLedger();
     $('#current-region').textContent=state.district==='all'?'全域资源网络':district(state.district)?.name||'未归属区县';
-    const ns=visibleNodes(),resourceTotal=ns.filter(n=>n.type!=='team').length+teamCountFor(ns);$('#scope-label').textContent=`${state.district==='all'?'绵阳市全域':district(state.district)?.name||'未归属区县'} · ${number(resourceTotal)} 项资源`;
     $$('#map-layers button').forEach(b=>{const active=state.layers.has(b.dataset.layer);b.classList.toggle('active',active);b.setAttribute('aria-pressed',String(active));});
     if(map)renderMap();
   }
@@ -388,7 +378,7 @@
     $('#open-ledger').addEventListener('click',toggleLedger);$('#close-ledger').addEventListener('click',()=>setView('map'));
     $('#district-filter').addEventListener('change',e=>setDistrict(e.target.value));
     $('#search').addEventListener('input',e=>{state.search=e.target.value.trim();state.page=1;state.warehousePage=1;closeDrawer(false);render();});
-    $('#home-region').addEventListener('click',()=>setDistrict('all'));$('#home-region-link').addEventListener('click',returnHome);$('#reset-map').addEventListener('click',returnHome);
+    $('#home-region').addEventListener('click',()=>setDistrict('all'));$('#reset-map').addEventListener('click',returnHome);
     $('#zoom-in').addEventListener('click',()=>map?.zoomIn());$('#zoom-out').addEventListener('click',()=>map?.zoomOut());
     $('#close-modal').addEventListener('click',()=>$('#modal').close());
     $('#modal').addEventListener('click',e=>{if(e.target===$('#modal')){const r=$('#modal').getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)$('#modal').close();}});
