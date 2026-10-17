@@ -156,3 +156,5 @@ body{font-size:14px}
 @media(min-width:1700px){.map-legend{bottom:270px}}
 @media(max-width:1250px) and (min-width:651px){.map-legend{bottom:235px;max-width:calc(100% - 32px)}}
 @media(max-width:650px){.map-legend{left:10px;right:auto;bottom:225px;max-width:calc(100% - 20px);padding:9px 10px;gap:7px;font-size:10px}}
+.district-capacity button:disabled{opacity:1;cursor:default}
+.district-capacity button:disabled:hover{background:transparent;border-color:transparent;color:inherit}

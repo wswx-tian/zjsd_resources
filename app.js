@@ -137,10 +137,11 @@
     $('#equipment-list').innerHTML=[...groups].sort((a,b)=>b[1].rows-a[1].rows).map(([name,g])=>`<div class="resource-row static-row"><span><strong>${esc(name)}</strong><small>${number(g.rows)} 条记录 · ${[...g.qty].map(([u,q])=>`${number(q)} ${esc(u)}`).join(' · ')||'数量未填'}</small></span></div>`).join('')||'<p class="empty-state">当前筛选下没有装备记录</p>';
   }
   function renderDistricts(){
-    const list=D.nodes;
+    const list=D.nodes,teamLayer=state.layers.has('team');
+    $('#district-interaction-hint').textContent=teamLayer?'队伍按区县汇总展示':'点击区县进入下钻';
     $('#district-capacity').innerHTML=D.districts.map(d=>{
       const nodes=list.filter(n=>n.district===d.id),wh=nodes.filter(n=>n.type==='warehouse').length,team=teamCountForDistrict(d.id),transport=nodes.filter(n=>n.type==='transport').length,equipment=nodes.filter(n=>n.type==='equipment').length,total=wh+team+transport+equipment;
-      return `<button data-district="${d.id}" class="${state.district===d.id?'active':''}" title="进入${esc(d.name)}"><span class="capacity-name">${esc(d.short)}</span><span class="district-count">${number(total)} 项资源</span><small>仓 ${wh} · 队 ${number(team)} · 站 ${transport} · 装 ${equipment}</small></button>`;
+      return `<button data-district="${d.id}" class="${state.district===d.id?'active':''}" title="${teamLayer?'队伍数据仅展示区县汇总':`进入${esc(d.name)}`}" ${teamLayer?'disabled':''}><span class="capacity-name">${esc(d.short)}</span><span class="district-count">${number(total)} 项资源</span><small>仓 ${wh} · 队 ${number(team)} · 站 ${transport} · 装 ${equipment}</small></button>`;
     }).join('');
   }
   function currentLedgerRows(){
@@ -172,6 +173,7 @@
   function render(){
     renderKpis();renderWarehouses();renderMaterials();renderResourcePanel('transport');renderResourcePanel('team');renderEquipment();renderDistricts();renderLedger();
     $('#current-region').textContent=state.district==='all'?'全域资源网络':district(state.district)?.name||'未归属区县';
+    $('#map-heading-help').textContent=state.layers.has('team')?'救援队伍按区县汇总展示，不提供区县下钻':'点击区县下钻，点击资源点查看详情';
     const ns=visibleNodes(),resourceTotal=ns.filter(n=>n.type!=='team').length+teamCountFor(ns);$('#scope-label').textContent=`${state.district==='all'?'绵阳市全域':district(state.district)?.name||'未归属区县'} · ${number(resourceTotal)} 项资源`;
     $$('#map-layers button').forEach(b=>{const active=state.layers.has(b.dataset.layer);b.classList.toggle('active',active);b.setAttribute('aria-pressed',String(active));});
     if(map)renderMap();
@@ -189,7 +191,7 @@
     map=L.map('map',{zoomControl:false,attributionControl:true,preferCanvas:true,zoomSnap:.25,minZoom:6,maxZoom:16}).setView([31.48,104.72],7.75);
     markers=L.layerGroup().addTo(map);
     boundaryLayer=L.geoJSON(window.CITY_GEOJSON,{style:boundaryStyle,onEachFeature:(f,layer)=>{
-      const d=D.districts.find(x=>x.name===f.properties.name);if(d){layer.on('click',()=>setDistrict(d.id));layer.bindTooltip(`${d.name} · 点击查看资源`,{sticky:true});}
+      const d=D.districts.find(x=>x.name===f.properties.name);if(d){layer.on('click',()=>{if(!state.layers.has('team'))setDistrict(d.id);});layer.on('mouseover',e=>{const path=e.target.getElement();if(path)path.style.cursor=state.layers.has('team')?'default':'pointer';});layer.bindTooltip(d.name,{sticky:true});}
     }}).addTo(map);
     map.on('zoomend moveend',()=>{clearTimeout(renderTimer);renderTimer=setTimeout(renderMap,100);});
     setBasemap('satellite');fitScope();renderMap();
@@ -215,7 +217,7 @@
     if(!map||!markers)return;markers.clearLayers();
     const type=[...state.layers][0]||'warehouse',zoom=map.getZoom(),bounds=map.getBounds().pad(.08);
     boundaryLayer?.setStyle(boundaryStyle);
-    boundaryLayer?.eachLayer(layer=>{const d=D.districts.find(x=>x.name===layer.feature?.properties?.name);if(d)layer.setTooltipContent(type==='team'?`${d.name} · ${number(teamCountForDistrict(d.id))} 支救援队伍 · 点击下钻`:`${d.name} · 点击查看资源`);});
+    boundaryLayer?.eachLayer(layer=>{const d=D.districts.find(x=>x.name===layer.feature?.properties?.name);if(d)layer.setTooltipContent(type==='team'?`${d.name} · ${number(teamCountForDistrict(d.id))} 支救援队伍`:`${d.name} · 点击查看资源`);});
     const all=visibleNodes().filter(n=>n.type===type&&n.latlng&&bounds.contains(n.latlng));
     let shown=all;
     if(type==='warehouse'){
@@ -237,7 +239,7 @@
       point.on('click',()=>showNode(n.id));
       point.bindTooltip(esc(n.name)+' · '+esc(typeMeta[n.type].label)+(type==='warehouse'?' · '+esc(n.level||'级别未填'):''),{direction:'top',offset:[0,-4]});
     }
-    $('#map-legend').innerHTML=type==='warehouse'?'<span><i class="legend-node" style="--legend-color:'+warehouseLevelColors['市级']+'"></i>市级</span><span><i class="legend-node" style="--legend-color:'+warehouseLevelColors['县级']+'"></i>县级</span><span><i class="legend-node" style="--legend-color:'+warehouseLevelColors['乡镇级']+'"></i>乡镇级</span><span><i class="legend-node" style="--legend-color:'+warehouseLevelColors['村级']+'"></i>村级</span><span><i class="legend-line"></i>上下级仓网</span><span class="map-zoom-note">放大地图查看乡镇与村级仓点</span><span id="visible-map-count" class="visible-map-count"></span>':type==='team'?'<span>辖区队伍数</span><span><i class="legend-swatch" style="--legend-color:#315e70"></i>1–49</span><span><i class="legend-swatch" style="--legend-color:#438a87"></i>50–99</span><span><i class="legend-swatch" style="--legend-color:#64b6aa"></i>100–199</span><span><i class="legend-swatch" style="--legend-color:#9fd5c8"></i>200+</span><span class="map-zoom-note">按区县统计 · 点击区域下钻</span><span id="visible-map-count" class="visible-map-count"></span>':'<span><i class="legend-node" style="--legend-color:'+typeMeta[type].color+'"></i>'+esc(typeMeta[type].label)+'</span><span class="map-zoom-note">放大地图查看周边资源详情</span><span id="visible-map-count" class="visible-map-count"></span>';
+    $('#map-legend').innerHTML=type==='warehouse'?'<span><i class="legend-node" style="--legend-color:'+warehouseLevelColors['市级']+'"></i>市级</span><span><i class="legend-node" style="--legend-color:'+warehouseLevelColors['县级']+'"></i>县级</span><span><i class="legend-node" style="--legend-color:'+warehouseLevelColors['乡镇级']+'"></i>乡镇级</span><span><i class="legend-node" style="--legend-color:'+warehouseLevelColors['村级']+'"></i>村级</span><span><i class="legend-line"></i>上下级仓网</span><span class="map-zoom-note">放大地图查看乡镇与村级仓点</span><span id="visible-map-count" class="visible-map-count"></span>':type==='team'?'<span>辖区队伍数</span><span><i class="legend-swatch" style="--legend-color:#315e70"></i>1–49</span><span><i class="legend-swatch" style="--legend-color:#438a87"></i>50–99</span><span><i class="legend-swatch" style="--legend-color:#64b6aa"></i>100–199</span><span><i class="legend-swatch" style="--legend-color:#9fd5c8"></i>200+</span><span class="map-zoom-note">按区县统计 · 仅展示汇总</span><span id="visible-map-count" class="visible-map-count"></span>':'<span><i class="legend-node" style="--legend-color:'+typeMeta[type].color+'"></i>'+esc(typeMeta[type].label)+'</span><span class="map-zoom-note">放大地图查看周边资源详情</span><span id="visible-map-count" class="visible-map-count"></span>';
     $('#visible-map-count').textContent=type==='team'?`全市统计 ${number(teamCountFor(visibleNodes()))} 支`:'当前视野 '+number(shown.length)+' 个';
   }
   function closeDrawer(restoreFocus=true){const wasOpen=!$('#detail-drawer').hidden;$('#detail-drawer').hidden=true;state.selected=null;if(wasOpen&&restoreFocus&&drawerReturnFocus?.isConnected)drawerReturnFocus.focus({preventScroll:true});}
