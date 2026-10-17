@@ -192,3 +192,8 @@ body{font-size:14px}
   .topbar-tools .sync-info{align-self:flex-end;font-size:8px;line-height:1}.topbar-tools .sync-info button span:last-child{display:inline}
   .dashboard{height:auto;min-height:0;display:flex;flex-direction:column;padding:0 11px}
 }
+/* Make map level colors readable over the satellite basemap. */
+.map-legend .legend-title{font-weight:700;color:#fff}
+.map-legend .legend-node{width:10px;height:10px;border:1.5px solid #f1fff9;border-radius:50%;box-shadow:0 0 7px #eafff480;flex:none}
+.leaflet-overlay-pane .resource-point-marker{filter:drop-shadow(0 0 2px rgba(238,255,249,.88))}
+.leaflet-overlay-pane .warehouse-network-link{filter:drop-shadow(0 0 2px rgba(4,44,46,.95))}
