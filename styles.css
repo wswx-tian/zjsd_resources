@@ -162,8 +162,7 @@ body{font-size:14px}
 @media(max-width:650px){.brand-logo{width:26px;height:26px}}
 
 /* Place the main resource controls in the header and give the workspace the recovered row. */
-.topbar{height:82px;display:grid;grid-template-columns:max-content max-content minmax(0,1fr) max-content;gap:clamp(14px,1.4vw,26px);padding:0 clamp(18px,1.6vw,32px)}
-.topnav{flex:none;gap:18px}
+.topbar{height:82px;display:grid;grid-template-columns:max-content minmax(0,1fr) max-content;gap:clamp(14px,1.4vw,26px);padding:0 clamp(18px,1.6vw,32px)}
 .topbar-tools{display:flex;align-items:center;gap:clamp(10px,1.2vw,20px);min-width:0}
 .topbar-tools .page-label{min-width:170px;flex:none}
 .topbar-tools .page-label h1{font-size:14px;margin-top:4px;white-space:nowrap}
@@ -176,15 +175,15 @@ body{font-size:14px}
 @media(min-width:1700px){.topbar{height:88px}.dashboard{height:calc(100dvh - 88px);grid-template-rows:115px minmax(0,1fr) 37px}}
 @media(max-width:1500px) and (min-width:1001px){.topbar{gap:14px;padding-inline:18px}.topbar-tools{gap:10px}.topbar-tools .page-label{min-width:145px}.topbar-tools .page-label .eyebrow{display:none}.topbar-tools .page-label h1{font-size:13px;margin:0}.topbar-tools .search-wrap{max-width:210px;min-width:125px}.topbar-tools .sync-info{gap:5px}.topbar-tools .demo-label{display:none}.topbar-tools .sync-info button span:last-child{display:none}}
 @media(max-width:1000px){
-  .topbar{height:auto;min-height:106px;grid-template-columns:max-content minmax(0,1fr) max-content;grid-template-rows:42px 44px;gap:8px 16px;padding:8px 16px}
-  .brand{grid-column:1;grid-row:1}.topnav{grid-column:2;grid-row:1;justify-content:flex-start}.header-right{grid-column:3;grid-row:1;gap:12px}
+  .topbar{height:auto;min-height:106px;grid-template-columns:minmax(0,1fr) max-content;grid-template-rows:42px 44px;gap:8px 16px;padding:8px 16px}
+  .brand{grid-column:1;grid-row:1}.header-right{grid-column:2;grid-row:1;gap:12px}
   .topbar-tools{grid-column:1/-1;grid-row:2;gap:12px}.topbar-tools .page-label{display:none}.topbar-tools .global-filters{flex:1}.topbar-tools .select-wrap select{min-width:120px}.topbar-tools .search-wrap{max-width:none}
   .topbar-tools .sync-info{flex:none}.topbar-tools .demo-label{display:none}
   .dashboard{height:calc(100dvh - 106px);min-height:860px;grid-template-rows:95px minmax(0,1fr) 32px}
 }
 @media(max-width:650px){
-  .topbar{min-height:0;height:auto;grid-template-columns:minmax(0,1fr) auto;grid-template-rows:36px auto;gap:9px 8px;padding:9px 13px 10px}
-  .brand{grid-column:1;grid-row:1}.topnav{grid-column:2;grid-row:1;justify-content:flex-end}.header-right{display:none}
+  .topbar{min-height:0;height:auto;grid-template-columns:minmax(0,1fr);grid-template-rows:36px auto;gap:9px 8px;padding:9px 13px 10px}
+  .brand{grid-column:1;grid-row:1}.header-right{display:none}
   .topbar-tools{grid-column:1/-1;grid-row:2;display:flex;flex-direction:column;align-items:stretch;gap:7px}
   .topbar-tools .global-filters{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"district ledger" "search search";gap:6px;flex:none}
   .topbar-tools .select-wrap{grid-area:district;min-width:0}.topbar-tools .select-wrap select{width:100%;min-width:0}
