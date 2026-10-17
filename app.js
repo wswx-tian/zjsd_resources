@@ -44,6 +44,22 @@
   let map,markers,boundaryLayer,basemapLayer,renderTimer,toastTimer,ledgerReturnFocus,drawerReturnFocus;
   const warehouseRank={'市级':0,'县级':1,'乡镇级':2,'村级':3};
   const warehouseLevelColors={'市级':'#168f83','县级':'#29b89f','乡镇级':'#72d8bb','村级':'#c1f0d9'};
+  const cityGeometry=window.CITY_GEOJSON?.features?.find(f=>f.properties?.name==='绵阳市')?.geometry;
+  function pointInRing(lng,lat,ring){
+    let inside=false;
+    for(let i=0,j=ring.length-1;i<ring.length;j=i++){
+      const [xi,yi]=ring[i],[xj,yj]=ring[j],cross=(lng-xi)*(yj-yi)-(lat-yi)*(xj-xi);
+      if(Math.abs(cross)<1e-9&&lng>=Math.min(xi,xj)-1e-9&&lng<=Math.max(xi,xj)+1e-9&&lat>=Math.min(yi,yj)-1e-9&&lat<=Math.max(yi,yj)+1e-9)return true;
+      if((yi>lat)!==(yj>lat)&&lng<(xj-xi)*(lat-yi)/(yj-yi)+xi)inside=!inside;
+    }
+    return inside;
+  }
+  function insideMianyang(latlng){
+    if(!cityGeometry||!Array.isArray(latlng)||latlng.length<2)return false;
+    const [lat,lng]=latlng,polygons=cityGeometry.type==='Polygon'?[cityGeometry.coordinates]:cityGeometry.coordinates;
+    return polygons.some(rings=>pointInRing(lng,lat,rings[0])&&!rings.slice(1).some(ring=>pointInRing(lng,lat,ring)));
+  }
+  const cityResourceNodes=new WeakSet(D.nodes.filter(n=>n.latlng&&insideMianyang(n.latlng)));
   const normalizeTownName=n=>[n.name,n.organization,n.admin].filter(Boolean).map(v=>v.replace(/应急物资储备站|应急物资物资储备点|应急物资储备点|物资储备站|物资储备点|人民政府|办公室/g,'').replace(/绵阳市|涪城区|游仙区|安州区|江油市|三台县|盐亭县|梓潼县|北川羌族自治县|平武县/g,'').trim()).filter(v=>v.length>=3).sort((a,b)=>b.length-a.length)[0]||'';
   function mapDistance(a,b){const y=(a.latlng[0]-b.latlng[0])*111,x=(a.latlng[1]-b.latlng[1])*95;return x*x+y*y;}
   function buildWarehouseLinks(){
@@ -207,7 +223,7 @@
   }
   function fitScope(){
     if(!map)return;
-    let list=state.district==='all'?D.nodes.filter(n=>n.latlng):D.nodes.filter(n=>n.district===state.district&&n.latlng);
+    let list=state.district==='all'?D.nodes.filter(n=>n.latlng&&cityResourceNodes.has(n)):D.nodes.filter(n=>n.district===state.district&&n.latlng&&cityResourceNodes.has(n));
     if(!list.length){const geo=D.districts.find(d=>d.id===state.district);if(geo){const feature=window.CITY_GEOJSON.features.find(f=>f.properties.name===geo.name);if(feature)map.fitBounds(L.geoJSON(feature).getBounds(),{padding:[55,55],maxZoom:10.5});}return;}
     const b=L.latLngBounds(list.map(n=>n.latlng));const compact=window.innerWidth<700;
     map.fitBounds(b,{paddingTopLeft:[compact?25:45,state.district==='all'?(compact?145:110):105],paddingBottomRight:[compact?25:45,220],maxZoom:state.district==='all'?8.2:11.5,animate:true,duration:.6});
@@ -217,7 +233,7 @@
     const type=[...state.layers][0]||'warehouse',zoom=map.getZoom(),bounds=map.getBounds().pad(.08);
     boundaryLayer?.setStyle(boundaryStyle);
     boundaryLayer?.eachLayer(layer=>{const d=D.districts.find(x=>x.name===layer.feature?.properties?.name);if(d)layer.setTooltipContent(type==='team'?`${d.name} · ${number(teamCountForDistrict(d.id))} 支救援队伍`:`${d.name} · 点击查看资源`);});
-    const all=visibleNodes().filter(n=>n.type===type&&n.latlng&&bounds.contains(n.latlng));
+    const all=visibleNodes().filter(n=>n.type===type&&n.latlng&&cityResourceNodes.has(n)&&bounds.contains(n.latlng));
     let shown=all;
     if(type==='warehouse'){
       // 市域初始视图已展示到乡镇级；缩小时收回乡镇，放大到街道尺度后再展示村级。
