@@ -173,7 +173,6 @@
   function render(){
     renderKpis();renderWarehouses();renderMaterials();renderResourcePanel('transport');renderResourcePanel('team');renderEquipment();renderDistricts();renderLedger();
     $('#current-region').textContent=state.district==='all'?'全域资源网络':district(state.district)?.name||'未归属区县';
-    $('#map-heading-help').textContent=state.layers.has('team')?'救援队伍按区县汇总展示，不提供区县下钻':'点击区县下钻，点击资源点查看详情';
     const ns=visibleNodes(),resourceTotal=ns.filter(n=>n.type!=='team').length+teamCountFor(ns);$('#scope-label').textContent=`${state.district==='all'?'绵阳市全域':district(state.district)?.name||'未归属区县'} · ${number(resourceTotal)} 项资源`;
     $$('#map-layers button').forEach(b=>{const active=state.layers.has(b.dataset.layer);b.classList.toggle('active',active);b.setAttribute('aria-pressed',String(active));});
     if(map)renderMap();
@@ -221,7 +220,8 @@
     const all=visibleNodes().filter(n=>n.type===type&&n.latlng&&bounds.contains(n.latlng));
     let shown=all;
     if(type==='warehouse'){
-      const tier=zoom<8.6?1:zoom<11.2?2:3;
+      // 市域初始视图已展示到乡镇级；缩小时收回乡镇，放大到街道尺度后再展示村级。
+      const tier=zoom<7.1?1:zoom<11.2?2:3;
       shown=all.filter(n=>warehouseRank[n.level]!==undefined&&warehouseRank[n.level]<=tier);
       if(zoom>=9.8&&zoom<12.6){
         const minGap=zoom<11.15?27:18,occupied=[];

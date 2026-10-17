@@ -158,3 +158,5 @@ body{font-size:14px}
 @media(max-width:650px){.map-legend{left:10px;right:auto;bottom:225px;max-width:calc(100% - 20px);padding:9px 10px;gap:7px;font-size:10px}}
 .district-capacity button:disabled{opacity:1;cursor:default}
 .district-capacity button:disabled:hover{background:transparent;border-color:transparent;color:inherit}
+.brand-logo{width:32px;height:32px;object-fit:contain;flex:none}
+@media(max-width:650px){.brand-logo{width:26px;height:26px}}

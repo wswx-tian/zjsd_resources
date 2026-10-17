@@ -12,7 +12,7 @@
 </head>
 <body>
   <header class="topbar">
-    <a class="brand" href="./index.html" aria-label="应急保障资源一张网首页"><span class="brand-symbol" data-icon="network"></span><span><strong>应急保障资源<span class="brand-accent">一张网</span></strong><small>EMERGENCY RESOURCE NETWORK · MIANYANG</small></span></a>
+    <a class="brand" href="./index.html" aria-label="应急保障资源首页"><img class="brand-logo" src="assets/emergency-logo.png" alt=""><span><strong>应急保障资源</strong><small>EMERGENCY RESOURCE NETWORK · MIANYANG</small></span></a>
     <nav class="topnav" aria-label="主要视图"><button class="active" data-view="map"><span data-icon="map"></span>资源总览</button></nav>
     <div class="header-right"><span class="live-state"><i></i>资源网络</span><span id="clock"></span><button class="icon-button" id="fullscreen" aria-label="全屏显示" title="全屏显示"><span data-icon="expand"></span></button></div>
   </header>
@@ -37,7 +37,6 @@
         <div id="map"></div><div class="map-vignette"></div><div id="offline-notice" class="offline-notice" hidden>底图暂不可用 · 资源位置与行政边界仍可查看</div>
         <div class="map-topline"><div class="breadcrumb"><button id="home-region"><span data-icon="globe"></span>绵阳市</button><span>/</span><strong id="current-region">全域保障网络</strong></div></div>
         <div class="map-filterbar" id="map-layers" role="group" aria-label="选择地图资源类型"><button class="layer-button active" data-layer="warehouse" aria-pressed="true"><i class="layer-dot cyan"></i>仓储 <b id="map-count-warehouse"></b></button><button class="layer-button" data-layer="transport" aria-pressed="false"><i class="layer-dot blue"></i>运输站场 <b id="map-count-transport"></b></button><button class="layer-button" data-layer="team" aria-pressed="false"><i class="layer-dot purple"></i>救援队伍 <b id="map-count-team"></b></button><button class="layer-button" data-layer="equipment" aria-pressed="false"><i class="layer-dot amber"></i>应急装备 <b id="map-count-equipment"></b></button></div>
-        <div class="map-heading"><span class="eyebrow">MIANYANG EMERGENCY RESOURCE NETWORK</span><h2>资源成网，保障可查<span class="heading-dot"></span></h2><p id="map-heading-help">点击区县下钻，点击资源点查看台账信息</p></div>
         <div class="map-tools"><button class="icon-button" id="zoom-in" title="放大地图" aria-label="放大地图"><span data-icon="plus"></span></button><button class="icon-button" id="zoom-out" title="缩小地图" aria-label="缩小地图"><span data-icon="minus"></span></button><span class="tool-divider"></span><button class="icon-button" id="reset-map" title="回到全域" aria-label="回到全域"><span data-icon="focus"></span></button><button class="icon-button" id="basemap" title="切换卫星 / 简洁底图" aria-label="切换底图"><span data-icon="layers"></span></button></div>
         <div class="map-legend" id="map-legend"><span><i class="legend-node"></i>表格坐标</span><span class="map-zoom-note">放大地图查看乡镇与村级仓点</span><span id="visible-map-count" class="visible-map-count"></span></div>
         <section class="coverage-card district-card"><div class="coverage-heading"><h3><i class="tiny-dot cyan"></i>区县资源分布</h3><span class="muted" id="district-interaction-hint">点击区县进入下钻</span></div><div class="district-capacity" id="district-capacity"></div><div class="coverage-footnote"><span>区县归属优先使用行政区划，其次依据坐标核对</span><button id="home-region-link">返回全域</button></div></section>
