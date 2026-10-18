@@ -110,12 +110,12 @@
   const warehouseTownAliases=n=>[n.name,n.admin,n.organization,n.address].filter(Boolean).flatMap(v=>[...normalizeWarehouseText(v).matchAll(/[\u3400-\u9fff]{2,18}?(?:街道|镇|乡)/g)].map(m=>m[0].replace(/镇镇$/,'镇').replace(/^(?:号|第)/,''))).filter((v,i,a)=>v.length>=2&&a.indexOf(v)===i);
   function mapDistance(a,b){const y=(a.latlng[0]-b.latlng[0])*111,x=(a.latlng[1]-b.latlng[1])*95;return x*x+y*y;}
   function nearestWarehouse(candidates,child){return candidates.reduce((best,parent)=>!best||mapDistance(parent,child)<mapDistance(best,child)?parent:best,null);}
-  function warehouseLinkInsideDistrict(parent,child){
-    if(!parent||!child||parent.district==='unknown'||parent.district!==child.district||!insideDistrict(parent.latlng,parent.district)||!insideDistrict(child.latlng,child.district))return false;
-    const steps=Math.max(2,Math.ceil(Math.sqrt(mapDistance(parent,child))/1.5));
-    for(let i=1;i<steps;i++){const t=i/steps,point=[parent.latlng[0]+(child.latlng[0]-parent.latlng[0])*t,parent.latlng[1]+(child.latlng[1]-parent.latlng[1])*t];if(!insideDistrict(point,parent.district))return false;}
-    return true;
+  function warehouseLinkPath(parent,child){
+    if(!parent||!child||parent.district==='unknown'||parent.district!==child.district||!insideDistrict(parent.latlng,parent.district)||!insideDistrict(child.latlng,child.district))return null;
+    // District membership determines whether the relationship is valid; the visual line may cross a boundary.
+    return [parent.latlng,child.latlng];
   }
+  function warehouseLinkInsideDistrict(parent,child){return Boolean(warehouseLinkPath(parent,child));}
   function namedTownParent(child,candidates){
     const text=normalizeWarehouseText([child.name,child.admin,child.organization,child.address].filter(Boolean).join(''));
     let matches=candidates.flatMap(parent=>warehouseTownAliases(parent).filter(alias=>text.includes(alias)).map(alias=>({parent,alias})));
@@ -125,9 +125,9 @@
   }
   function buildWarehouseLinks(){
     const rows=D.warehouses.filter(n=>n.district!=='unknown'&&cityResourceNodes.has(n)),links=[],city=rows.filter(n=>resourcePointRank(n)===0),county=rows.filter(n=>resourcePointRank(n)===1),town=rows.filter(n=>resourcePointRank(n)===2),village=rows.filter(n=>resourcePointRank(n)===3);
-    for(const child of county){const local=city.filter(p=>p.district===child.district),parent=nearestWarehouse(local,child);if(warehouseLinkInsideDistrict(parent,child))links.push([parent,child]);}
-    for(const child of town){const local=county.filter(p=>p.district===child.district),parent=nearestWarehouse(local,child);if(warehouseLinkInsideDistrict(parent,child))links.push([parent,child]);}
-    for(const child of village){const local=town.filter(p=>p.district===child.district),parent=namedTownParent(child,local)||nearestWarehouse(local,child);if(warehouseLinkInsideDistrict(parent,child))links.push([parent,child]);}
+    for(const child of county){const local=city.filter(p=>p.district===child.district),parent=nearestWarehouse(local,child),path=warehouseLinkPath(parent,child);if(path)links.push([parent,child,path]);}
+    for(const child of town){const local=county.filter(p=>p.district===child.district),parent=nearestWarehouse(local,child),path=warehouseLinkPath(parent,child);if(path)links.push([parent,child,path]);}
+    for(const child of village){const local=town.filter(p=>p.district===child.district),parent=namedTownParent(child,local)||nearestWarehouse(local,child),path=warehouseLinkPath(parent,child);if(path)links.push([parent,child,path]);}
     return links;
   }
   const warehouseLinks=buildWarehouseLinks();
@@ -181,7 +181,6 @@
     const levels=[...new Set(D.warehouses.map(n=>n.level).filter(Boolean))];
     $('#network-tiers').style.gridTemplateColumns=`repeat(${Math.max(1,levels.length)},minmax(0,1fr))`;
     $('#network-tiers').innerHTML=levels.map(level=>`<div class="tier"><strong>${number(list.filter(n=>n.level===level).length)}</strong><small>${esc(level)}</small></div>`).join('');
-    $('#warehouse-count').textContent=`当前 ${number(list.length)} 个`;
     const rank={'市级':0,'县级':1,'乡镇级':2,'村级':3},sorted=[...list].sort((a,b)=>(rank[a.level]??9)-(rank[b.level]??9)||a.name.localeCompare(b.name,'zh-CN'));
     const pages=Math.max(1,Math.ceil(sorted.length/state.warehousePageSize));state.warehousePage=Math.min(state.warehousePage,pages);
     const start=(state.warehousePage-1)*state.warehousePageSize,shown=sorted.slice(start,start+state.warehousePageSize);
@@ -254,7 +253,7 @@
     return {color:'#72d5c0',weight:f.properties.level==='district'?1:1.6,opacity:.65,fillColor:'#3ed1ac',fillOpacity:.035};
   }
   function initMap(){
-    map=L.map('map',{zoomControl:false,attributionControl:true,preferCanvas:true,zoomSnap:.25,minZoom:6,maxZoom:16}).setView([31.48,104.72],7.75);
+    map=L.map('map',{zoomControl:false,attributionControl:true,preferCanvas:true,zoomSnap:.1,minZoom:6,maxZoom:16}).setView([31.48,104.72],7.75);
     map.attributionControl.setPrefix(false);
     map.attributionControl.setPosition('bottomleft');
     const linkPane=map.createPane('warehouseLinksPane');linkPane.style.zIndex='399';linkPane.style.pointerEvents='none';warehouseLinkRenderer=L.svg({pane:'warehouseLinksPane',padding:.5});
@@ -281,8 +280,8 @@
     if(!list.length){const geo=D.districts.find(d=>d.id===state.district);if(geo){const feature=window.CITY_GEOJSON.features.find(f=>f.properties.name===geo.name);if(feature)map.fitBounds(L.geoJSON(feature).getBounds(),{padding:[55,55],maxZoom:10.5});}return;}
     const b=L.latLngBounds(list.map(n=>n.latlng)),compact=window.innerWidth<700;
     const displayPixelWidth=Math.max(window.innerWidth,window.screen?.width||0)*window.devicePixelRatio;
-    const cityMaxZoom=displayPixelWidth>=2400?9:8.2;
-    map.fitBounds(b,{paddingTopLeft:[compact?25:45,state.district==='all'?(compact?145:110):105],paddingBottomRight:[compact?25:45,220],maxZoom:state.district==='all'?cityMaxZoom:11.5,animate:true,duration:.6});
+    const cityMaxZoom=displayPixelWidth>=2400?9.4:8.7,fullCity=state.district==='all';
+    map.fitBounds(b,{paddingTopLeft:[compact?25:45,fullCity?(compact?145:70):105],paddingBottomRight:[compact?25:45,fullCity?(compact?220:145):220],maxZoom:fullCity?cityMaxZoom:11.5,animate:true,duration:.6});
   }
   function renderPointLegend(type){
     if(type==='warehouse')return '<span class="legend-title">仓库等级</span>'+Object.entries(warehouseLevelColors).map(([level,color])=>`<span><i class="legend-node" style="--legend-color:${color}"></i>${level}</span>`).join('')+'<span title="仅匹配同一区县的相邻层级仓点；坐标与台账区县不一致的记录暂不参与连线"><i class="legend-line"></i>同区上下级仓网</span><span id="visible-map-count" class="visible-map-count"></span>';
@@ -308,9 +307,9 @@
       }
       const activeIds=new Set(shown.map(n=>n.id));
       const flowPaths=[];
-      warehouseLinks.forEach(([parent,child])=>{
+      warehouseLinks.forEach(([parent,child,coordinates])=>{
         if(!cityResourceNodes.has(parent)||!cityResourceNodes.has(child)||!activeIds.has(child.id))return;
-        const line=L.polyline([parent.latlng,child.latlng],{renderer:warehouseLinkRenderer,color:'#3d96ea',weight:zoom<9?1.7:1.3,opacity:zoom<9?.66:.58,interactive:false,className:'warehouse-network-link',warehouseParentId:parent.id,warehouseChildId:child.id}).addTo(markers);
+        const line=L.polyline(coordinates,{renderer:warehouseLinkRenderer,color:'#3d96ea',weight:zoom<9?1.7:1.3,opacity:zoom<9?.66:.58,interactive:false,className:'warehouse-network-link',warehouseParentId:parent.id,warehouseChildId:child.id}).addTo(markers);
         const path=line.getElement();if(path)flowPaths.push(path);
       });
       if(flowPaths.length){
