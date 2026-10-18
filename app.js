@@ -38,8 +38,18 @@
     typeMeta={warehouse:{label:'仓储网点',color:'#65ddc3',icon:'warehouse'},transport:{label:'运输站场',color:'#77a9f1',icon:'truck'},team:{label:'救援队伍',color:'#bda4ee',icon:'users'},equipment:{label:'应急装备',color:'#e4b76e',icon:'radio'}};
   D.nodes=[...D.warehouses,...D.transport,...D.teamSummary.areas,...D.equipment];
   D.materials.forEach((m,i)=>m.rowId=i);
-  const state={district:'all',search:'',view:'map',ledger:'all',page:1,pageSize:50,warehousePage:1,warehousePageSize:8,layers:new Set(['warehouse']),basemap:'satellite',selected:null};
+  const state={district:'all',search:'',view:'map',ledger:'all',page:1,pageSize:50,warehousePage:1,warehousePageSize:8,transportCategory:'all',layers:new Set(['warehouse']),basemap:'satellite',selected:null};
   const materialsByWarehouse=new Map(),warehouseById=new Map(D.warehouses.map(w=>[w.id,w]));
+  function transportDisplayNodes(list){
+    const result=[],airports=new Map();
+    list.forEach(n=>{
+      if(n.type!=='transport'||n.category!=='机场'){result.push(n);return;}
+      const key=String(n.name||'').trim().replace(/\s*T[12]航站楼\s*$/i,'').trim(),index=airports.get(key);
+      if(index===undefined){airports.set(key,result.length);result.push(n);}
+      else if(String(n.name||'').length<String(result[index].name||'').length)result[index]=n;
+    });
+    return result;
+  }
   D.materials.forEach(m=>{if(!materialsByWarehouse.has(m.warehouseId))materialsByWarehouse.set(m.warehouseId,[]);materialsByWarehouse.get(m.warehouseId).push(m);m.district=warehouseById.get(m.warehouseId)?.district||'';m.searchText=`${m.name} ${m.spec} ${m.category} ${m.unit} ${warehouseById.get(m.warehouseId)?.name||''} ${warehouseById.get(m.warehouseId)?.admin||''}`.toLocaleLowerCase();});
   let map,markers,boundaryLayer,basemapLayer,warehouseLinkRenderer,warehouseFlowGroup,renderTimer,toastTimer,ledgerReturnFocus,drawerReturnFocus;
   const warehouseRank={'市级':0,'县级':1,'乡镇级':2,'村级':3};
@@ -149,22 +159,22 @@
   function resourceAbility(n){
     if(n.type==='warehouse')return `${materialsByWarehouse.get(n.id)?.length||0} 条物资明细${n.capacity?` · 库容 ${esc(n.capacity)}`:''}`;
     if(n.type==='transport')return [n.category,n.mode,n.capacity&&`吞吐 ${n.capacity}`,n.area&&`面积 ${n.area}`,n.responsible&&`负责人 ${n.responsible}`,n.phone&&`电话 ${n.phone}`,n.purpose].filter(Boolean).map(esc).join(' · ')||'站场信息';
-    if(n.type==='team')return n.teamCount===null?'辖区数量未提供':`${number(n.teamCount)} 支救援队伍`;
+    if(n.type==='team')return n.teamCount===null?'辖区数量未提供':`${number(n.teamCount)} 救援队伍`;
     return [n.equipmentType||n.name,n.quantity!==null&&n.quantity!==undefined&&`${number(n.quantity)} ${esc(n.unit)}`].filter(Boolean).join(' · ');
   }
   function setCounts(){
-    for(const type of Object.keys(typeMeta))$(`#map-count-${type}`).textContent=number(type==='team'?D.teamSummary.total:D.nodes.filter(n=>n.type===type).length);
+    for(const type of Object.keys(typeMeta))$(`#map-count-${type}`).textContent=number(type==='team'?D.teamSummary.total:type==='transport'?transportDisplayNodes(D.transport).length:D.nodes.filter(n=>n.type===type).length);
   }
   function renderKpis(){
-    const ns=visibleNodes(),ms=matchingMaterials(),wh=ns.filter(n=>n.type==='warehouse'),transport=ns.filter(n=>n.type==='transport'),equipment=ns.filter(n=>n.type==='equipment'),teams=teamCountFor(ns),equipmentUnits=new Set(equipment.map(n=>n.unit).filter(Boolean)).size;
+    const ns=visibleNodes(),ms=matchingMaterials(),wh=ns.filter(n=>n.type==='warehouse'),transport=transportDisplayNodes(ns.filter(n=>n.type==='transport')),equipment=ns.filter(n=>n.type==='equipment'),teams=teamCountFor(ns),equipmentUnits=new Set(equipment.map(n=>n.unit).filter(Boolean)).size;
     const values=[
       {label:'应急仓储网点',value:wh.length,unit:'个',icon:'warehouse',color:'var(--cyan)'},
       {label:'应急物资明细',value:ms.length,unit:'条',icon:'box',color:'var(--magenta)'},
-      {label:'应急队伍数量',value:teams,unit:'支',icon:'users',color:'var(--purple)'},
+      {label:'应急队伍数量',value:teams,unit:'',icon:'users',color:'var(--purple)'},
       {label:'交通运输机构',value:transport.length,unit:'个',icon:'truck',color:'var(--blue)'},
       {label:'应急装备记录',value:equipment.length,unit:'条',icon:'radio',color:'var(--amber)'}
     ];
-    $('#kpis').innerHTML=values.map(k=>`<div class="kpi" style="--kpi-color:${k.color}"><span class="kpi-symbol">${icon(k.icon)}</span><span class="kpi-content"><span class="kpi-label">${k.label}</span><span class="kpi-value">${number(k.value)}<small>${k.unit}</small></span></span></div>`).join('');
+    $('#kpis').innerHTML=values.map(k=>`<div class="kpi" style="--kpi-color:${k.color}"><span class="kpi-symbol">${icon(k.icon)}</span><span class="kpi-content"><span class="kpi-label">${k.label}</span><span class="kpi-value">${number(k.value)}${k.unit?`<small>${k.unit}</small>`:''}</span></span></div>`).join('');
   }
   function renderWarehouses(){
     const list=visibleNodes().filter(n=>n.type==='warehouse');
@@ -187,20 +197,19 @@
   function renderResourcePanel(type){
     const list=visibleNodes().filter(n=>n.type===type),id=type==='transport'?'transport':'team';
     if(type==='transport'){
-      const byType=new Map();list.forEach(n=>byType.set(n.category||'类型未填',(byType.get(n.category||'类型未填')||0)+1));
-      $('#transport-summary').innerHTML=`<small>${[...byType].sort((a,b)=>b[1]-a[1]).map(([k,v])=>`${esc(k)} ${number(v)}`).join(' · ')||'无匹配记录'}</small>`;
-      $(`#${id}-list`).innerHTML=list.map(n=>`<button class="resource-row" data-node="${n.id}"><span><strong>${esc(n.name)}</strong><small>${esc(district(n.district)?.short||n.admin||'区县未归属')} · ${esc(n.mode||n.category||'')}</small></span><b>${icon('arrow-right')}</b></button>`).join('')||'<p class="empty-state">当前筛选下没有运输机构</p>';
+      const institutions=transportDisplayNodes(list),byType=new Map();institutions.forEach(n=>byType.set(n.category||'类型未填',(byType.get(n.category||'类型未填')||0)+1));
+      const categories=[...byType].sort((a,b)=>b[1]-a[1]),filtered=state.transportCategory==='all'?institutions:institutions.filter(n=>(n.category||'类型未填')===state.transportCategory);
+      $('#transport-summary').innerHTML=`<button class="transport-type-filter" data-transport-category="all" aria-pressed="${state.transportCategory==='all'}">全部</button>${categories.map(([k,v])=>`<button class="transport-type-filter" data-transport-category="${esc(k)}" aria-pressed="${state.transportCategory===k}">${esc(k)} ${number(v)}</button>`).join('')||'<span>无匹配记录</span>'}`;
+      $(`#${id}-list`).innerHTML=filtered.map(n=>`<button class="resource-row" data-node="${n.id}"><span><strong>${esc(n.name)}</strong><small>${esc(district(n.district)?.short||n.admin||'区县未归属')} · ${esc(n.mode||n.category||'')}</small></span><b>${icon('arrow-right')}</b></button>`).join('')||'<p class="empty-state">当前筛选下没有运输机构</p>';
     }else{
       const ranked=list.filter(n=>n.teamCount!==null).sort((a,b)=>b.teamCount-a.teamCount);
-      $(`#${id}-list`).innerHTML=ranked.map(n=>`<div class="resource-row static-row"><span><strong>${esc(n.name)}</strong><small>辖区统计</small></span><b>${number(n.teamCount)} 支</b></div>`).join('')||'<p class="empty-state">当前筛选下没有区域统计</p>';
+      $(`#${id}-list`).innerHTML=ranked.map(n=>`<div class="resource-row static-row"><span><strong>${esc(n.name)}</strong></span><b>${number(n.teamCount)}</b></div>`).join('')||'<p class="empty-state">当前筛选下没有区域统计</p>';
     }
   }
   function renderEquipment(){
     const list=visibleNodes().filter(n=>n.type==='equipment'),groups=new Map();
-    list.forEach(n=>{const key=n.equipmentType||n.name;if(!groups.has(key))groups.set(key,{rows:0,qty:new Map()});const g=groups.get(key);g.rows++;if(n.unit)g.qty.set(n.unit,(g.qty.get(n.unit)||0)+(Number(n.quantity)||0));});
-    const qty=[...new Set(list.map(n=>n.unit).filter(Boolean))].map(unit=>`${number(list.filter(n=>n.unit===unit).reduce((s,n)=>s+(Number(n.quantity)||0),0))} ${esc(unit)}`).join(' · ');
-    $('#equipment-summary').innerHTML=`<small>${qty||'数量未提供'}</small>`;
-    $('#equipment-list').innerHTML=[...groups].sort((a,b)=>b[1].rows-a[1].rows).map(([name,g])=>`<div class="resource-row static-row"><span><strong>${esc(name)}</strong><small>${number(g.rows)} 条记录 · ${[...g.qty].map(([u,q])=>`${number(q)} ${esc(u)}`).join(' · ')||'数量未填'}</small></span></div>`).join('')||'<p class="empty-state">当前筛选下没有装备记录</p>';
+    list.forEach(n=>{const key=n.equipmentType||n.name;if(!groups.has(key))groups.set(key,{quantity:0,hasQuantity:false});const g=groups.get(key);if(n.quantity!==null&&n.quantity!==undefined&&n.quantity!==''&&Number.isFinite(Number(n.quantity))){g.quantity+=Number(n.quantity);g.hasQuantity=true;}});
+    $('#equipment-list').innerHTML=[...groups].map(([name,g])=>`<div class="resource-row static-row"><span><strong>${esc(name)}</strong></span><b>${g.hasQuantity?number(g.quantity):'—'}</b></div>`).join('')||'<p class="empty-state">当前筛选下没有装备记录</p>';
   }
   function currentLedgerRows(){
     const ns=visibleNodes(),ms=matchingMaterials();let list=[];
@@ -246,6 +255,8 @@
   }
   function initMap(){
     map=L.map('map',{zoomControl:false,attributionControl:true,preferCanvas:true,zoomSnap:.25,minZoom:6,maxZoom:16}).setView([31.48,104.72],7.75);
+    map.attributionControl.setPrefix(false);
+    map.attributionControl.setPosition('bottomleft');
     const linkPane=map.createPane('warehouseLinksPane');linkPane.style.zIndex='399';linkPane.style.pointerEvents='none';warehouseLinkRenderer=L.svg({pane:'warehouseLinksPane',padding:.5});
     markers=L.layerGroup().addTo(map);
     boundaryLayer=L.geoJSON(window.CITY_GEOJSON,{style:boundaryStyle,onEachFeature:(f,layer)=>{
@@ -256,7 +267,7 @@
   }
   function setBasemap(mode){
     if(!map)return;state.basemap=mode;if(basemapLayer)map.removeLayer(basemapLayer);
-    const attribution=mode==='satellite'?'Imagery © Esri':'© OpenStreetMap © CARTO';
+    const attribution=mode==='satellite'?'© Esri':'© OpenStreetMap © CARTO';
     if(mode==='satellite'){
       const available=new Set(window.LOCAL_SATELLITE_TILES||[]);
       const LocalTiles=L.TileLayer.extend({getTileUrl(coords){const key=`${coords.z}-${coords.x}-${coords.y}`;return available.has(key)?`assets/tiles/${key}.jpg`:`https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${coords.z}/${coords.y}/${coords.x}`;}});
@@ -283,8 +294,9 @@
     if(!map||!markers)return;warehouseFlowGroup?.remove();warehouseFlowGroup=null;markers.clearLayers();
     const type=[...state.layers][0]||'warehouse',zoom=map.getZoom(),bounds=map.getBounds().pad(.08);
     boundaryLayer?.setStyle(boundaryStyle);
-    boundaryLayer?.eachLayer(layer=>{const d=D.districts.find(x=>x.name===layer.feature?.properties?.name);if(d)layer.setTooltipContent(type==='team'?`${d.name} · ${number(teamCountForDistrict(d.id))} 支救援队伍`:`${d.name} · 点击查看资源`);});
-    const all=visibleNodes().filter(n=>n.type===type&&n.latlng&&cityResourceNodes.has(n)&&bounds.contains(n.latlng));
+    boundaryLayer?.eachLayer(layer=>{const d=D.districts.find(x=>x.name===layer.feature?.properties?.name);if(d)layer.setTooltipContent(type==='team'?`${d.name} · ${number(teamCountForDistrict(d.id))} 救援队伍`:`${d.name} · 点击查看资源`);});
+    const mapNodes=visibleNodes().filter(n=>n.type===type),displayNodes=type==='transport'?transportDisplayNodes(mapNodes):mapNodes;
+    const all=displayNodes.filter(n=>n.latlng&&cityResourceNodes.has(n)&&bounds.contains(n.latlng));
     let shown=all;
     if(type==='warehouse'){
       // 市域初始视图已展示到乡镇级；缩小时收回乡镇，放大到街道尺度后再展示村级。
@@ -327,7 +339,7 @@
       point.bindTooltip(esc(n.name)+' · '+esc(typeMeta[n.type].label)+(type==='warehouse'?(n.level?' · '+esc(resourcePointLevel(n)):' · 名称识别层级 '+esc(resourcePointLevel(n))):' · 识别层级 '+esc(resourcePointLevel(n))),{direction:'top',offset:[0,-4]});
     }
     $('#map-legend').innerHTML=renderPointLegend(type);
-    $('#visible-map-count').textContent=type==='team'?`全市统计 ${number(teamCountFor(visibleNodes()))} 支`:'当前视野 '+number(shown.length)+' 个';
+    $('#visible-map-count').textContent=type==='team'?`全市统计 ${number(teamCountFor(visibleNodes()))}`:'当前视野 '+number(shown.length)+' 个';
   }
   function closeDrawer(restoreFocus=true){const wasOpen=!$('#detail-drawer').hidden;$('#detail-drawer').hidden=true;state.selected=null;if(wasOpen&&restoreFocus&&drawerReturnFocus?.isConnected)drawerReturnFocus.focus({preventScroll:true});}
   function focusPanelControl(control,panel){const r=control.getBoundingClientRect();if(r.top<0||r.bottom>window.innerHeight)panel.scrollIntoView({block:'start',behavior:'instant'});control.focus({preventScroll:true});}
@@ -341,14 +353,14 @@
   }
   function toggleLedger(){setView(state.view==='list'?'map':'list','all');}
   function setDistrict(id){state.district=id;state.warehousePage=1;$('#district-filter').value=id;closeDrawer(false);render();fitScope();}
-  function returnHome(){state.district='all';state.search='';state.warehousePage=1;$('#district-filter').value='all';$('#search').value='';setView('map');render();fitScope();}
+  function returnHome(){state.district='all';state.search='';state.warehousePage=1;state.transportCategory='all';$('#district-filter').value='all';$('#search').value='';setView('map');render();fitScope();}
   function showNode(id){
     const n=D.nodes.find(x=>x.id===id);if(!n)return;if(state.view==='list')setView('map');state.selected=id;
     const d=district(n.district),drawer=$('#detail-drawer'),items=n.type==='warehouse'?(materialsByWarehouse.get(n.id)||[]):[];
     if(drawer.hidden)drawerReturnFocus=document.activeElement;
     let detail='';
     if(n.type==='warehouse')detail=`<section class="drawer-section"><h3>关联物资明细 <small>${number(items.length)} 条，沿用原计量单位</small></h3><div class="drawer-table-wrap"><table class="drawer-material-table"><thead><tr><th>物资名称 / 品类</th><th>规格</th><th>数量</th></tr></thead><tbody>${items.map(m=>`<tr><td>${esc(m.name)}<small>${esc(m.category)}</small></td><td>${esc(m.spec||'未填')}</td><td>${fmtMaybe(m.quantity)} ${esc(m.unit)}</td></tr>`).join('')||'<tr><td colspan="3">无关联物资明细</td></tr>'}</tbody></table></div></section>`;
-    if(n.type==='team')detail=`<section class="drawer-section"><h3>区域数量统计</h3><div class="detail-row"><span>应急队伍数量</span><b>${n.teamCount===null?'未提供':`${number(n.teamCount)} 支`}</b></div></section>`;
+    if(n.type==='team')detail=`<section class="drawer-section"><h3>区域数量统计</h3><div class="detail-row"><span>应急队伍数量</span><b>${n.teamCount===null?'未提供':number(n.teamCount)}</b></div></section>`;
     if(n.type==='transport')detail=`<section class="drawer-section"><h3>机构信息</h3>${[['站场类型',n.category],['运输方式',n.mode],['吞吐能力',n.capacity],['站场面积',n.area],['负责人',n.responsible],['联系电话',n.phone],['用途',n.purpose]].filter(x=>x[1]).map(([k,v])=>`<div class="detail-row"><span>${esc(k)}</span><b>${esc(v)}</b></div>`).join('')||'<p class="empty-state">表中未提供更多机构属性</p>'}</section>`;
     if(n.type==='equipment')detail=`<section class="drawer-section"><h3>装备信息</h3>${[['设备类型',n.equipmentType],['使用单位',n.organization],['数量',fmtMaybe(n.quantity,` ${n.unit||''}`)],['行政区划',n.admin]].filter(x=>x[1]).map(([k,v])=>`<div class="detail-row"><span>${esc(k)}</span><b>${esc(v)}</b></div>`).join('')}</section>`;
     const locationConflict=Boolean(n.latlng&&n.district!=='unknown'&&!insideDistrict(n.latlng,n.district));
@@ -400,11 +412,12 @@
       if(b.dataset.warehousePage){state.warehousePage+=b.dataset.warehousePage==='next'?1:-1;renderWarehouses();}
       if(b.dataset.materialCategory){state.search=b.dataset.materialCategory;$('#search').value=state.search;state.page=1;render();}
       if(b.dataset.materialRow!==undefined)showMaterial(Number(b.dataset.materialRow));
+      if(b.dataset.transportCategory!==undefined){state.transportCategory=b.dataset.transportCategory;renderResourcePanel('transport');}
       if(b.dataset.page){state.page+=b.dataset.page==='next'?1:-1;renderLedger();}
     });
   }
   $('#district-filter').insertAdjacentHTML('beforeend',D.districts.map(d=>`<option value="${d.id}">${esc(d.name)}</option>`).join(''));
   function updateClock(){$('#clock').textContent=new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Hong_Kong',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).format(new Date()).replace(' ','  ');}
   icons();bindEvents();setCounts();updateClock();setInterval(updateClock,1000);render();initMap();
-  window.ResourceNetwork={state,visibleNodes,render,setDistrict,showNode,setView,closeDrawer,warehouseLinks,insideDistrict,warehouseLinkInsideDistrict,resourcePointLevel,resourcePointColor,isMappableNode:n=>cityResourceNodes.has(n),get mapLayers(){return markers;},get map(){return map;}};
+  window.ResourceNetwork={state,visibleNodes,transportDisplayNodes,render,setDistrict,showNode,setView,closeDrawer,warehouseLinks,insideDistrict,warehouseLinkInsideDistrict,resourcePointLevel,resourcePointColor,isMappableNode:n=>cityResourceNodes.has(n),get mapLayers(){return markers;},get map(){return map;}};
 })();
