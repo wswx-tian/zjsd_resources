@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#07151f">
+  <title>应急资源保障一张图</title>
+  <meta name="description" content="以地图连接仓储、物资、运力与人员的应急保障资源协同工作台。">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Crect width='40' height='40' rx='10' fill='%230b2630'/%3E%3Cpath d='M10 12L29 9 31 28 13 31Z M10 12L31 28M29 9L13 31' stroke='%235ee1d4' fill='none'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="assets/vendor/leaflet/leaflet.css">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="./index.html" aria-label="应急资源保障一张图首页"><img class="brand-logo" src="assets/emergency-logo.png" alt=""><span><strong>应急资源保障一张图</strong></span></a>
+    <section class="topbar-tools" aria-label="资源筛选">
+      <div class="global-filters"><label class="select-wrap"><span data-icon="pin"></span><select id="district-filter" aria-label="选择保障区域"><option value="all">绵阳市 · 全域</option></select></label><label class="search-wrap"><span data-icon="search"></span><input id="search" type="search" placeholder="搜索名称、物资、地址" aria-label="搜索资源"><kbd>/</kbd></label><button id="open-ledger" class="outline-button ledger-entry" aria-controls="ledger" aria-expanded="false" title="打开资源台账"><span data-icon="layers"></span>资源台账</button></div>
+      <div class="sync-info"><span class="demo-label">业务台账数据</span></div>
+    </section>
+    <div class="header-right"><span class="live-state"><i></i>资源网络</span><span id="clock"></span><button class="icon-button" id="fullscreen" aria-label="全屏显示" title="全屏显示"><span data-icon="expand"></span></button></div>
+  </header>
+
+  <main class="dashboard">
+    <section class="kpi-strip" aria-label="全域保障核心指标" id="kpis"></section>
+
+    <section class="workspace">
+      <aside class="sidebar left-sidebar">
+        <section class="panel warehouse-panel"><div class="panel-heading"><h2><span data-icon="warehouse"></span>应急仓储</h2></div><div class="network-tiers" id="network-tiers"></div><div class="subheading"><span>仓储网点</span><span class="muted" id="warehouse-count"></span></div><div id="warehouse-list" class="warehouse-list"></div><div id="warehouse-pagination" class="warehouse-pagination" aria-label="仓储列表分页"></div></section>
+        <section class="panel material-panel"><div class="panel-heading"><h2><span data-icon="box"></span>应急物资</h2></div><div id="material-list" class="material-list"></div></section>
+      </aside>
+
+      <section class="map-panel" aria-label="资源保障网络地图">
+        <div id="map"></div><div id="offline-notice" class="offline-notice" hidden>底图暂不可用 · 资源位置与行政边界仍可查看</div>
+        <div class="map-topline"><div class="breadcrumb"><button id="home-region"><span data-icon="globe"></span>绵阳市</button><span>/</span><strong id="current-region">全域保障网络</strong></div></div>
+        <div class="map-filterbar" id="map-layers" role="group" aria-label="选择地图资源类型"><button class="layer-button active" data-layer="warehouse" aria-pressed="true"><i class="layer-dot cyan"></i>仓储 <b id="map-count-warehouse"></b></button><button class="layer-button" data-layer="transport" aria-pressed="false"><i class="layer-dot blue"></i>运输站场 <b id="map-count-transport"></b></button><button class="layer-button" data-layer="team" aria-pressed="false"><i class="layer-dot purple"></i>救援队伍 <b id="map-count-team"></b></button><button class="layer-button" data-layer="equipment" aria-pressed="false"><i class="layer-dot amber"></i>应急装备 <b id="map-count-equipment"></b></button></div>
+        <div class="map-tools"><button class="icon-button" id="zoom-in" title="放大地图" aria-label="放大地图"><span data-icon="plus"></span></button><button class="icon-button" id="zoom-out" title="缩小地图" aria-label="缩小地图"><span data-icon="minus"></span></button><span class="tool-divider"></span><button class="icon-button" id="reset-map" title="回到全域" aria-label="回到全域"><span data-icon="focus"></span></button></div>
+        <div class="map-legend" id="map-legend"><span><i class="legend-node"></i>表格坐标</span><span id="visible-map-count" class="visible-map-count"></span></div>
+        <section class="ledger" id="ledger" aria-label="资源台账" hidden><div class="ledger-heading"><div><span class="eyebrow">RESOURCE DIRECTORY</span><h2>资源台账</h2></div><div class="ledger-actions"><button id="export" class="outline-button" aria-label="导出当前结果"><span data-icon="download"></span><span class="export-label">导出筛选结果</span></button><button id="close-ledger" class="outline-button ledger-return" title="收起台账，返回地图（Esc）"><span data-icon="close"></span>返回地图</button></div></div><div class="segmented ledger-tabs"><button class="active" data-ledger="all">全部</button><button data-ledger="warehouse">仓储</button><button data-ledger="material">物资</button><button data-ledger="transport">运输机构</button><button data-ledger="team">救援队伍</button><button data-ledger="equipment">应急装备</button></div><p class="ledger-result" id="ledger-result"></p><div class="ledger-scroll"><table><thead id="ledger-head"></thead><tbody id="ledger-rows"></tbody></table></div><div class="ledger-pagination" id="ledger-pagination"></div></section>
+        <aside class="detail-drawer" id="detail-drawer" aria-label="资源详细信息" hidden></aside>
+      </section>
+
+      <aside class="sidebar right-sidebar">
+        <section class="panel transport-panel"><div class="panel-heading"><h2><span data-icon="truck"></span>交通运输机构</h2></div><div class="resource-summary" id="transport-summary"></div><div class="resource-list" id="transport-list"></div></section>
+        <section class="panel personnel-panel"><div class="panel-heading"><h2><span data-icon="users"></span>应急救援队伍</h2></div><div class="resource-summary" id="team-summary"></div><div class="resource-list" id="team-list"></div></section>
+        <section class="panel attention-panel equipment-panel"><div class="panel-heading"><h2><span data-icon="radio"></span>应急装备</h2></div><div class="resource-summary" id="equipment-summary"></div><div class="resource-list" id="equipment-list"></div></section>
+      </aside>
+    </section>
+  </main>
+  <dialog id="modal"><div class="modal-top"><h2 id="modal-title"></h2><button id="close-modal" class="icon-button" aria-label="关闭窗口"><span data-icon="close"></span></button></div><div id="modal-content"></div></dialog>
+  <div class="toast" role="status" id="toast"></div>
+  <script src="assets/vendor/leaflet/leaflet.js"></script>
+  <script src="assets/boundaries.js"></script>
+  <script src="assets/local-tiles.js"></script>
+  <script src="data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
