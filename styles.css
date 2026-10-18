@@ -38,6 +38,8 @@
 .resource-summary>strong{grid-row:span 2;font-size:25px;line-height:1.1;color:#e1f0f0;font-variant-numeric:tabular-nums}
 .resource-summary>span{font-size:10px;color:#b5c8ce}
 .resource-summary>small{font-size:8px;color:#718e99;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.resource-summary.breakdown-summary{grid-template-columns:minmax(0,1fr)}
+.resource-summary.breakdown-summary>small{grid-column:1/-1;white-space:normal;line-height:1.5}
 .resource-list{overflow:auto;min-height:0}
 .resource-row{display:flex;width:100%;align-items:center;justify-content:space-between;gap:8px;text-align:left;padding:8px 0;border-bottom:1px solid #1e3542}
 .resource-row strong{display:block;font-weight:400;font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}

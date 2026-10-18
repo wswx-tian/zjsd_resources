@@ -188,19 +188,18 @@
     const list=visibleNodes().filter(n=>n.type===type),id=type==='transport'?'transport':'team';
     if(type==='transport'){
       const byType=new Map();list.forEach(n=>byType.set(n.category||'类型未填',(byType.get(n.category||'类型未填')||0)+1));
-      $('#transport-summary').innerHTML=`<strong>${number(list.length)}</strong><span>个运输机构</span><small>${[...byType].map(([k,v])=>`${esc(k)} ${v}`).join(' · ')||'无匹配记录'}</small>`;
+      $('#transport-summary').innerHTML=`<small>${[...byType].sort((a,b)=>b[1]-a[1]).map(([k,v])=>`${esc(k)} ${number(v)}`).join(' · ')||'无匹配记录'}</small>`;
       $(`#${id}-list`).innerHTML=list.map(n=>`<button class="resource-row" data-node="${n.id}"><span><strong>${esc(n.name)}</strong><small>${esc(district(n.district)?.short||n.admin||'区县未归属')} · ${esc(n.mode||n.category||'')}</small></span><b>${icon('arrow-right')}</b></button>`).join('')||'<p class="empty-state">当前筛选下没有运输机构</p>';
     }else{
-      const ranked=list.filter(n=>n.teamCount!==null).sort((a,b)=>b.teamCount-a.teamCount),total=teamCountFor(list);
-      $('#team-summary').innerHTML=`<strong>${number(total)}</strong><span>支救援队伍</span><small>${state.district==='all'?'全市系统统计 · 按区域汇总':'当前区县统计'}</small>`;
+      const ranked=list.filter(n=>n.teamCount!==null).sort((a,b)=>b.teamCount-a.teamCount);
       $(`#${id}-list`).innerHTML=ranked.map(n=>`<div class="resource-row static-row"><span><strong>${esc(n.name)}</strong><small>辖区统计</small></span><b>${number(n.teamCount)} 支</b></div>`).join('')||'<p class="empty-state">当前筛选下没有区域统计</p>';
     }
   }
   function renderEquipment(){
     const list=visibleNodes().filter(n=>n.type==='equipment'),groups=new Map();
     list.forEach(n=>{const key=n.equipmentType||n.name;if(!groups.has(key))groups.set(key,{rows:0,qty:new Map()});const g=groups.get(key);g.rows++;if(n.unit)g.qty.set(n.unit,(g.qty.get(n.unit)||0)+(Number(n.quantity)||0));});
-    const qty=[...new Map(list.filter(n=>n.unit).map(n=>[n.unit,0])).keys()].map(unit=>`${number(list.filter(n=>n.unit===unit).reduce((s,n)=>s+(Number(n.quantity)||0),0))} ${esc(unit)}`).join(' · ');
-    $('#equipment-summary').innerHTML=`<strong>${number(list.length)}</strong><span>条装备记录</span><small>${qty||'数量未提供'}</small>`;
+    const qty=[...new Set(list.map(n=>n.unit).filter(Boolean))].map(unit=>`${number(list.filter(n=>n.unit===unit).reduce((s,n)=>s+(Number(n.quantity)||0),0))} ${esc(unit)}`).join(' · ');
+    $('#equipment-summary').innerHTML=`<small>${qty||'数量未提供'}</small>`;
     $('#equipment-list').innerHTML=[...groups].sort((a,b)=>b[1].rows-a[1].rows).map(([name,g])=>`<div class="resource-row static-row"><span><strong>${esc(name)}</strong><small>${number(g.rows)} 条记录 · ${[...g.qty].map(([u,q])=>`${number(q)} ${esc(u)}`).join(' · ')||'数量未填'}</small></span></div>`).join('')||'<p class="empty-state">当前筛选下没有装备记录</p>';
   }
   function currentLedgerRows(){
